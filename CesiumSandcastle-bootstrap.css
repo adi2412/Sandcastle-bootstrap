@@ -1,0 +1,65 @@
+.navbar{
+    margin-bottom: 7px;
+}
+
+#bucketFrame{
+    width: 100%;
+    height: 603px;
+}
+
+#codeContainerTabs+.tab-content{
+    border: 1px solid #ddd;
+}
+
+.codeContainer{
+    height: 585px;
+}
+
+.CodeMirror{
+    height: 100%;
+}
+
+#bucketFrame{
+    height: 585px;
+    width: 100%;
+}
+
+.demos{
+    white-space: nowrap;
+    overflow: auto;
+}
+
+a.linkButton{
+    display:inline-block;
+    width: 12%;
+}
+
+a.linkButton img{
+    width: 97%;
+}
+
+.consoleError {
+    color: #f00;
+}
+
+#logOutput span{
+    display: block;
+}
+
+@media (max-width: 1144px){
+    .navbar-toggle{
+      display: block;
+    }
+
+    .container-fluid>.navbar-collapse{
+        display:none !important;
+    }
+
+    .navbar-header{
+        float: none;
+    }
+
+    .demos .linkButton>div{
+        display: none;
+    }
+}
