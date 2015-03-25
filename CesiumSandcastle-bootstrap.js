@@ -3,38 +3,27 @@
 /*global sandcastleJsHintOptions*/// defined by jsHintOptions.js, created by build
 require({
     baseUrl : '.',
+    shim : {
+        bootstrap : { "deps" :['jquery'] }
+    },
+    paths: {
+        jquery: '//code.jquery.com/jquery-1.11.2.min',
+        jqueryMousewheel: 'ThirdParty/jquery.mousewheel/jquery.mousewheel.min',
+        bootstrap: 'ThirdParty/bootstrap-3.3.2/js/bootstrap.min'
+    },
     packages : [{
-        name : 'dojo',
-        location : 'ThirdParty/dojo-release-1.9.3/dojo'
+        name: 'bootstrap',
+        location: 'ThirdParty/bootstrap-3.3.2/js'
     }, {
-        name : 'dijit',
-        location : 'ThirdParty/dojo-release-1.9.3/dijit'
-    }, {
-        name : 'Sandcastle',
-        location : '.'
-    }, {
-        name : 'Cesium',
+        name : 'Source',
         location : './Source'
     }, {
         name : 'CodeMirror',
         location : 'ThirdParty/codemirror-4.6'
     }]
 }, [
-        'dijit/layout/ContentPane',
-        'dijit/popup',
-        'dijit/registry',
-        'dijit/TooltipDialog',
-        'dojo/_base/fx',
-        'dojo/_base/xhr',
-        'dojo/dom',
-        'dojo/dom-class',
-        'dojo/dom-construct',
-        'dojo/io-query',
-        'dojo/mouse',
-        'dojo/on',
-        'dojo/parser',
-        'dojo/query',
-        'Sandcastle/LinkButton',
+        'jquery',
+        'jqueryMousewheel',
         'Source/Cesium',
         'CodeMirror/lib/codemirror',
         'CodeMirror/addon/hint/show-hint',
@@ -43,37 +32,10 @@ require({
         'CodeMirror/mode/css/css',
         'CodeMirror/mode/xml/xml',
         'CodeMirror/mode/htmlmixed/htmlmixed',
-        'dijit/form/Button',
-        'dijit/form/DropDownButton',
-        'dijit/form/ToggleButton',
-        'dijit/form/DropDownButton',
-        'dijit/form/TextBox',
-        'dijit/form/Textarea',
-        'dijit/Menu',
-        'dijit/MenuBar',
-        'dijit/PopupMenuBarItem',
-        'dijit/MenuItem',
-        'dijit/layout/BorderContainer',
-        'dijit/layout/TabContainer',
-        'dijit/Toolbar',
-        'dijit/ToolbarSeparator',
-        'dojo/domReady!'
+        'bootstrap'
     ], function(
-        ContentPane,
-        popup,
-        registry,
-        TooltipDialog,
-        fx,
-        xhr,
-        dom,
-        domClass,
-        domConstruct,
-        ioQuery,
-        mouse,
-        on,
-        parser,
-        query,
-        LinkButton,
+        $,
+        mousewheel,
         Cesium,
         CodeMirror) {
     "use strict";
@@ -84,15 +46,6 @@ require({
     function defined(value) {
         return value !== undefined;
     }
-
-    parser.parse();
-
-    // fx.fadeOut({
-    //     node : 'loading',
-    //     onEnd : function() {
-    //         domConstruct.destroy('loading');
-    //     }
-    // }).play();
 
     var numberOfNewConsoleMessages = 0;
 
@@ -126,7 +79,7 @@ require({
 
     var jsEditor;
     var htmlEditor;
-    var suggestButton = registry.byId('buttonSuggest');
+    var suggestButton = $('#buttonSuggest');
     var docTimer;
     var docTabs = {};
     var subtabs = {};
@@ -135,9 +88,10 @@ require({
     var galleryTooltipTimer;
     var activeGalleryTooltipDemo;
     var demoTileHeightRule = findCssStyle('.demoTileThumbnail');
-    var cesiumContainer = registry.byId('cesiumContainer');
-    var docNode = dom.byId('docPopup');
-    var docMessage = dom.byId('docPopupMessage');
+    var cesiumTabs = $('#cesiumTabs');
+    var cesiumContainer = $('#cesiumContainer');
+    var docNode = $('#docPopup');
+    var docMessage = $('#docPopupMessage');
     var local = {
         'docTypes' : [],
         'headers' : '<html><head></head><body>',
@@ -160,18 +114,18 @@ require({
     galleryErrorMsg.textContent = 'No demos match your search terms.';
 
     var bucketFrame = document.getElementById('bucketFrame');
-    var bucketPane = registry.byId('bucketPane');
+    // var bucketPane = registry.byId('bucketPane');
     var bucketWaiting = false;
 
-    // xhr.get({
-    //     url : '../../Build/Documentation/types.txt',
-    //     handleAs : 'json',
-    //     error : function(error) {
-    //         docError = true;
-    //     }
-    // }).then(function(value) {
-    //     local.docTypes = value;
-    // });
+    $.ajax({
+        url : 'Documentation/types.txt',
+        dataType : 'json',
+        error : function(error) {
+            docError = true;
+        }
+    }).done(function(value) {
+        local.docTypes = value;
+    });
 
     var decoderSpan = document.createElement('span');
     function encodeHTML(text) {
@@ -195,31 +149,39 @@ require({
         domClass.remove(registry.byId('buttonRun').domNode, 'highlightToolbarButton');
     }
 
+    function registerClose(title) {
+        $('#cesiumTabs a[href="#'+title+'Pane"] span.close').click(function(){
+            var docID = $(this).parent().attr("href");
+            if($(this).parent().parent().hasClass("active"))
+                $('#cesiumTabs a:first').tab('show');
+            $(this).parent().parent().remove();
+            $(docID).remove();
+            docTabs[title] = undefined;
+        });
+    }
+
     function openDocTab(title, link) {
-        if (!defined(docTabs[title])) {
-            docTabs[title] = new ContentPane({
-                title : title,
-                focused : true,
-                content : '<iframe class="fullFrame" src="' + link + '"></iframe>',
-                closable : true,
-                onClose : function() {
-                    docTabs[this.title] = undefined;
-                    // Return true to close the tab.
-                    return true;
-                }
-            }).placeAt(cesiumContainer);
-            // After the iframe loads, re-scroll to selected field.
-            docTabs[title].domNode.childNodes[0].onload = function() {
-                this.onload = function() {
+        // Bootstrap doesn't play nice with periods in tab IDs.
+        var escapeTitle = title.replace('.','_');
+        if (!defined(docTabs[escapeTitle])) {
+            var docTab = '<li role="presentation"><a href="#'+escapeTitle+'Pane" class="docTab" aria-controls="'+escapeTitle+'Pane" role="tab" data-toggle="tab">' + title + '<span class="close">x</span></a></li>';
+            var docTabPane = '<div role="tabpanel" class="tab-pane" id="'+escapeTitle+'Pane"><iframe class="fullFrame" src="' + link + '"></iframe></div>';
+            cesiumTabs.append(docTab);
+            cesiumContainer.append(docTabPane);
+            registerClose(escapeTitle);
+            docTabs[escapeTitle] = docTab;
+            $('#'+escapeTitle+'Pane iframe').onload = function(){
+                this.onload = function(){
                 };
                 this.src = link;
             };
-            cesiumContainer.selectChild(docTabs[title]);
+            // After the iframe loads, re-scroll to selected field.
+            $('#cesiumTabs a[href="#'+escapeTitle+'Pane"]').tab('show');
         } else {
             // Tab already exists, but maybe not visible.  Firefox needs the tab to
             // be revealed before a re-scroll can happen.  Chrome works either way.
-            cesiumContainer.selectChild(docTabs[title]);
-            docTabs[title].domNode.childNodes[0].src = link;
+            $('#cesiumTabs a[href="#'+escapeTitle+'Pane"]').tab('show');
+            $('#'+escapeTitle+'Pane iframe').src = link;
         }
     }
 
@@ -236,23 +198,24 @@ require({
         if (docError && selectedText && selectedText.length < 50) {
             hideGallery();
         } else if (lowerText && lowerText in local.docTypes && typeof local.docTypes[lowerText].push === 'function') {
-            docMessage.innerHTML = '';
+            docMessage.text('');
             for (var i = 0, len = local.docTypes[lowerText].length; i < len; ++i) {
                 var member = local.docTypes[lowerText][i];
                 var ele = document.createElement('a');
                 ele.target = '_blank';
                 ele.textContent = member.replace('.html', '').replace('module-', '').replace('#', '.');
-                ele.href = '../../Build/Documentation/' + member;
+                ele.href = 'Documentation/' + member;
                 ele.onclick = onDocClick;
-                docMessage.appendChild(ele);
+                docMessage.append(ele);
             }
-            jsEditor.addWidget(jsEditor.getCursor(true), docNode);
-            docNode.style.top = (parseInt(docNode.style.top, 10) - 5) + 'px';
+            jsEditor.addWidget(jsEditor.getCursor(true), docNode.get(0));
+            docNode.css('top', (parseInt(docNode.css('top'), 10) - 5) + 'px');
+            $('#docPopup').tooltip('show');
         }
     }
 
     function onCursorActivity() {
-        // docNode.style.left = '-999px';
+        docNode.css('left', '-999px');
         if (defined(docTimer)) {
             window.clearTimeout(docTimer);
         }
@@ -267,41 +230,10 @@ require({
         return element;
     }
 
-    function closeGalleryTooltip() {
-        if (defined(activeGalleryTooltipDemo)) {
-            popup.close(demoTooltips[activeGalleryTooltipDemo.name]);
-            activeGalleryTooltipDemo = undefined;
-        }
-    }
-
-    function openGalleryTooltip() {
-        // galleryTooltipTimer = undefined;
-
-        // var selectedTabName = registry.byId('innerPanel').selectedChildWidget.title;
-        // var suffix = selectedTabName + 'Demos';
-        // if (selectedTabName === 'All') {
-        //     suffix = '';
-        // } else if (selectedTabName === 'Search Results') {
-        //     suffix = 'searchDemo';
-        // }
-
-        // if (defined(activeGalleryTooltipDemo)) {
-        //     popup.open({
-        //         popup : demoTooltips[activeGalleryTooltipDemo.name],
-        //         around : dom.byId(activeGalleryTooltipDemo.name + suffix),
-        //         orient : ['above', 'below']
-        //     });
-        // }
-    }
-
-    function scheduleGalleryTooltip(demo) {
-        if (demo !== activeGalleryTooltipDemo) {
-            activeGalleryTooltipDemo = demo;
-            if (defined(galleryTooltipTimer)) {
-                window.clearTimeout(galleryTooltipTimer);
-            }
-            galleryTooltipTimer = window.setTimeout(openGalleryTooltip, 220);
-        }
+    function setDemoTooltip(demoLink, desc) {
+        $(demoLink).attr('data-toggle', 'tooltip');
+        $(demoLink).attr('data-delay', 220);
+        $(demoLink).attr('data-title', desc);
     }
 
     function scriptLineToEditorLine(line) {
@@ -314,7 +246,6 @@ require({
         var i;
         var len;
         hintTimer = undefined;
-        closeGalleryTooltip();
         jsEditor.clearGutter('hintGutter');
         jsEditor.clearGutter('highlightGutter');
         jsEditor.clearGutter('errorGutter');
@@ -407,44 +338,32 @@ require({
         }
     }
 
-    var tabs = registry.byId('bottomPanel');
+    var tabs = $('#bottomPanel');
 
     function showGallery() {
-        // tabs.selectChild(registry.byId('innerPanel'));
+        $('#bottomPanel a[href=#innerPanel]').tab('show');
     }
 
     function hideGallery() {
-        closeGalleryTooltip();
-        // tabs.selectChild(registry.byId('logContainer'));
+        $('#bottomPanel a[href=#logContainer]').tab('show');
     }
 
-    // tabs.watch('selectedChildWidget', function(name, oldValue, newValue) {
-    //     if (newValue === registry.byId('logContainer')) {
-    //         numberOfNewConsoleMessages = 0;
-    //         registry.byId('logContainer').set('title', 'Console');
-    //     }
-    // });
+    $('#bottomPanel a[href=#logContainer]').on('shown.bs.tab', function(e){
+        numberOfNewConsoleMessages = 0;
+        $('#bottomPanel a[href=#logContainer]').text('Console');
+    });
 
     function registerScroll(demoContainer) {
-        // if (defined(document.onmousewheel)) {
-        //     demoContainer.addEventListener('mousewheel', function(e) {
-        //         if (defined(e.wheelDelta) && e.wheelDelta) {
-        //             demoContainer.scrollLeft -= e.wheelDelta * 70 / 120;
-        //         }
-        //     }, false);
-        // } else {
-        //     demoContainer.addEventListener('DOMMouseScroll', function(e) {
-        //         if (defined(e.detail) && e.detail) {
-        //             demoContainer.scrollLeft += e.detail * 70 / 3;
-        //         }
-        //     }, false);
-        // }
+        demoContainer.mousewheel(function(event, delta){
+            this.scrollLeft -= delta * 30;
+            event.preventDefault();
+        });
     }
 
     CodeMirror.commands.runCesium = function(cm) {
         clearErrorsAddHints();
         // clearRun();
-        // cesiumContainer.selectChild(bucketPane);
+        $('#cesiumTabs a[href="#bucketPane"]').tab('show');
         // Check for a race condition in some browsers where the iframe hasn't loaded yet.
         if (bucketFrame.contentWindow.location.href.indexOf('bucket.html') > 0) {
             bucketFrame.contentWindow.location.reload();
@@ -465,7 +384,7 @@ require({
         }
     });
 
-    // jsEditor.on('cursorActivity', onCursorActivity);
+    jsEditor.on('cursorActivity', onCursorActivity);
     // jsEditor.on('change', scheduleHint);
 
     htmlEditor = CodeMirror.fromTextArea(document.getElementById('htmlBody'), {
@@ -612,10 +531,10 @@ require({
         }
     }
 
-    xhr.get({
+    $.ajax({
         url : 'templates/bucket.html',
-        handleAs : 'text'
-    }).then(function(value) {
+        dataType : 'text'
+    }).done(function(value) {
         var pos = value.indexOf('</head>');
         local.emptyBucket = value.substring(0, pos);
         applyBucketIfWaiting();
@@ -628,10 +547,10 @@ require({
                 local.headers = bucketTypes[bucketName];
             } else {
                 local.headers = '<html><head></head><body data-sandcastle-bucket-loaded="no">';
-                xhr.get({
+                $.ajax({
                     url : 'templates/' + bucketName,
-                    handleAs : 'text'
-                }).then(function(value) {
+                    dataType : 'text'
+                }).done(function(value) {
                     var pos = value.indexOf('<body');
                     pos = value.indexOf('>', pos);
                     bucketTypes[bucketName] = value.substring(0, pos + 1);
@@ -778,14 +697,12 @@ require({
     //     htmlEditor.refresh();
     // });
 
-    $('#search').on('change', function() {
-        searchTerm = $('#search').text();
+    $('#search').keyup(function() {
+        searchTerm = $('#search').val();
         searchRegExp = new RegExp(searchTerm, 'i');
         var numDemosShown = 0;
         if (searchTerm !== '') {
             showSearchContainer();
-            var innerPanel = registry.byId('innerPanel');
-            innerPanel.selectChild(registry.byId('searchContainer'));
             for (var i = 0; i < gallery_demos.length; i++) {
                 var demo = gallery_demos[i];
                 var demoName = demo.name;
@@ -814,6 +731,7 @@ require({
         if ($('#searchPill')) {
             searchPill.remove();
             searchTab.remove();
+            $('#galleryPanel li:first a').tab('show');
         }
     }
 
@@ -821,7 +739,10 @@ require({
         if(!$('#searchPill').length){
             $('#innerPanel .tab-content').append(searchPill);
             $('#innerPanel #galleryPanel').append(searchTab);
+            registerScroll($('#searchDemos'));
+            // $('#searchDemos [data-toggle="tooltip"]').tooltip();
         }
+        $('li a[href=#searchPill]').tab('show');
     }
     
     $('#buttonNew').on('click', function(){
@@ -848,7 +769,15 @@ require({
     }
 
     $('#dropDownSaveAs').on('click', function(){
-        var currentDemoName = ioQuery.queryToObject(window.location.search.substring(1)).src;
+        var query = window.location.search.substring(1).split('&');
+        var currentDemoName = "";
+        for(var i= 0; i<query.length; ++i){
+            var tag = query[i].split('=');
+            if(tag[0] === "src"){
+                currentDemoName = tag[1];
+                break;
+            }
+        }
         currentDemoName = currentDemoName.replace('.html', '');
         var description = encodeHTML($('#description').text().replace(/\n/g, '\\n')).replace(/\"/g, '&quot;');
         var label = encodeHTML($('#label').text().replace(/\n/g, '\\n')).replace(/\"/g, '&quot;');
@@ -893,9 +822,9 @@ require({
     //     }
     // });
 
-    var demoContainers = query('.demosContainer');
-    demoContainers.forEach(function(demoContainer) {
-        registerScroll(demoContainer);
+    var demoContainers = $('.demosContainer div.tab-pane div:first-child');
+    $.each(demoContainers, function(i, val){
+        registerScroll($(val));
     });
 
     // var galleryContainer = registry.byId('innerPanel');
@@ -914,14 +843,18 @@ require({
 
     var queryObject = {};
     if (window.location.search) {
-        queryObject = ioQuery.queryToObject(window.location.search.substring(1));
+        var query = window.location.search.substring(1).split('&');
+        for(var i = 0; i < query.length; ++i){
+            var tags = query[i].split('=');
+            queryObject[tags[0]] = tags[1];
+        }
     } else {
         queryObject.src = 'Hello World.html';
         queryObject.label = 'Showcases';
     }
 
     function requestDemo(name) {
-        return xhr.get({
+        return $.ajax({
             url : 'gallery/' + name + '.html',
             handleAs : 'text',
             sync : true,
@@ -962,13 +895,6 @@ require({
                 }
             }
 
-            // Create a tooltip containing the demo's description.
-            demoTooltips[demo.name] = new TooltipDialog({
-                id : demo.name + 'TooltipDialog',
-                style : 'width: 200px; font-size: 12px;',
-                content : demo.description.replace(/\\n/g, '<br/>')
-            });
-
             addFileToTab(index);
         });
     }
@@ -1000,9 +926,8 @@ require({
                 if (!$('#' + label + 'Demos').length) {
                     $('#innerPanel ul').append('<li role="presentation"><a href="#'+label+'Pill" aria-controls="'+label+'Pill" role="tab" data-toggle="pill">' + label + '</a></li>');
                     $('#innerPanel .tab-content').append('<div role="tabpanel" class="tab-pane" id="'+label+'Pill"><div class="demos" id="'+label+'Demos"></div></div>');
-                    // $('#innerPanel').append('<div id="' + label + 'Container" class="demosContainer"><div class="demos" id="' + label + 'Demos"></div></div>');
                     // subtabs[label] = cp;
-                    // registerScroll(dom.byId(label + 'Container'));
+                    registerScroll($('#'+label + 'Pill div:first-child'));
                 }
                 var tabName = label + 'Demos';
                 var tab = $('#'+tabName);
@@ -1028,7 +953,7 @@ require({
             newDemo = demo;
         }
         demoLink.onclick = function(e) {
-            if (mouse.isMiddle(e)) {
+            if (e.which == 2) {
                 window.open('gallery/' + demo.name + '.html');
             } else {
                 loadFromGallery(demo);
@@ -1043,13 +968,8 @@ require({
 
         $(demoLink).append('<div class="demoTileTitle">' + demo.name + '</div><img src="' + imgSrc + '" class="demoTileThumbnail" alt="" onDragStart="return false;" />');
 
-        // on(dom.byId(demoLink.id), 'mouseover', function() {
-        //     scheduleGalleryTooltip(demo);
-        // });
-
-        // on(dom.byId(demoLink.id), 'mouseout', function() {
-        //     closeGalleryTooltip();
-        // });
+        setDemoTooltip(demoLink, demo.description);
+        $('[data-toggle="tooltip"]').tooltip();
     }
 
     if (!defined(gallery_demos)) {
@@ -1060,11 +980,11 @@ require({
         $('#innerPanel ul').append('<li role="presentation" class="active"><a href="#showcasesPill" aria-controls="showcasesPill" role="tab" data-toggle="pill">Showcases</a></li>');
         $('#innerPanel .tab-content').append('<div role="tabpanel" class="tab-pane active" id="showcasesPill"><div class="demos" id="ShowcasesDemos"></div></div>');
         // subtabs[label] = cp;
-        // registerScroll(dom.byId('showcasesContainer'));
+        registerScroll($('#showcasesPill div:first-child'));
 
-        var i;
         var len = gallery_demos.length;
 
+        var i;
         // Sort alphabetically.  This will eventually be a user option.
         gallery_demos.sort(function(a, b) {
             var aName = a.name.toUpperCase();
@@ -1085,7 +1005,7 @@ require({
         $('#innerPanel ul').append('<li role="presentation"><a href="#'+label+'Pill" aria-controls="'+label+'Pill" role="tab" data-toggle="pill">' + label + '</a></li>');
         $('#innerPanel .tab-content').append('<div role="tabpanel" class="tab-pane" id="'+label+'Pill"><div class="demos" id="'+label+'Demos"></div></div>');
         // subtabs[label] = cp;
-        registerScroll(dom.byId('allContainer'));
+        registerScroll($('#AllPill div:first-child'));
 
         var demos = $('#'+label+'Demos');
         for (i = 0; i < len; ++i) {
@@ -1103,10 +1023,11 @@ require({
         }
     }
 
-    // dom.byId('searchDemos').appendChild(galleryErrorMsg);
-    // var searchContainer = registry.byId('searchContainer');
+    $('#searchDemos').append(galleryErrorMsg);
     var searchPill = $('#searchPill');
     var searchTab = $('li a[href=#searchPill]').parent();
     hideSearchContainer();
-    // registry.byId('innerPanel').selectChild(subtabs[currentTab]);
+    $('#innerPanel ul a[data-toggle=pill]').on('show.bs.tab', function(e){
+        setSubtab(e.target.innerHTML);
+    });
 });

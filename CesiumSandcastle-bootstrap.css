@@ -19,14 +19,27 @@
     height: 100%;
 }
 
-#bucketFrame{
+#cesiumContainer iframe{
     height: 585px;
     width: 100%;
 }
 
+#cesiumTabs .docTab{
+    padding-right: 5px;
+}
+
+#cesiumTabs .close{
+    font-size: 14px;
+    margin-left: 10px;
+}
+
 .demos{
     white-space: nowrap;
-    overflow: auto;
+    overflow-x: scroll;
+}
+
+.demos .tooltip-inner{
+    white-space: normal;
 }
 
 a.linkButton{
@@ -43,6 +56,21 @@ a.linkButton img{
 }
 
 #logOutput span{
+    display: block;
+}
+
+#docPopup{
+    opacity: 0.9;
+    left: -999px;
+    top: 0;
+}
+
+#docPopupMessage{
+    max-width: 100%;
+    text-align: left;
+}
+
+#docPopupMessage a{
     display: block;
 }
 
