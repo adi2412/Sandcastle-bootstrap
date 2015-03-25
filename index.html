@@ -17,12 +17,9 @@
     </script>
     <script src="ThirdParty/jshint-2.1.10/jshint.js"></script>
 
-    <script data-dojo-config="async: 1, tlmSiblingOfDojo: 0" src="ThirdParty/dojo-release-1.9.3/dojo/dojo.js"></script>
-
     <script src="jsHintOptions.js"></script>
     <script src="gallery/gallery-index.js"></script>
-    <!-- // <script data-main="CesiumSandcastle-bootstrap" src="ThirdParty/requirejs-2.1.9/require.js"></script> -->
-    <script src="CesiumSandcastle-bootstrap.js"></script>
+    <script data-main="CesiumSandcastle-bootstrap" src="ThirdParty/requirejs-2.1.9/require.js"></script>
     <!-- The next three lines are for autocomplete -->
     <link rel="stylesheet" href="ThirdParty/codemirror-4.6/addon/hint/show-hint.css">
     <!-- End of autocomplete -->
@@ -115,12 +112,12 @@
                 <div class="col-md-7">
                     <div role="tabpanel">
                         <!-- Nav tabs -->
-                        <ul class="nav nav-tabs" id="codeContainerTabs" role="tablist">
+                        <ul class="nav nav-tabs" id="cesiumTabs" role="tablist">
                             <li role="presentation" class="active"><a href="#bucketPane" aria-controls="bucketPane" role="tab" data-toggle="tab">Cesium</a></li>
                         </ul>
 
                         <!-- Tab panes -->
-                        <div class="tab-content">
+                        <div id="cesiumContainer" class="tab-content">
                             <div role="tabpanel" class="tab-pane active" id="bucketPane">
                                 <iframe id="bucketFrame" src="templates/bucket.html" class="fullFrame" allowfullscreen mozallowfullscreen webkitallowfullscreen></iframe>
                             </div>
@@ -145,8 +142,9 @@
                                         <li role="presentation"><a href="#searchPill" aria-controls="searchPill" role="tab" data-toggle="pill">Search Results</a></li>
                                     </ul>
 
-                                    <div class="tab-content">
+                                    <div class="tab-content demosContainer">
                                         <div role="tabpanel" class="tab-pane active" id="searchPill">
+                                            <div class="demos" id="searchDemos"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -165,7 +163,10 @@
         <div class="dijitTooltipContainer dijitTooltipContents" id="docPopupMessage"></div>
         <div class="dijitTooltipConnector"></div>
     </div> -->
-    <script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
-    <script src="ThirdParty/bootstrap-3.3.2/js/bootstrap.min.js"></script>
+    <div class="tooltip bottom" id="docPopup" role="tooltip">
+      <div class="tooltip-arrow"></div>
+      <div class="tooltip-inner" id="docPopupMessage">
+      </div>
+    </div>
 </body>
 </html>
