@@ -6,6 +6,7 @@ require({
     shim : {
         bootstrap : { "deps" :['jquery'] }
     },
+    waitSeconds: 0,
     paths: {
         jquery: '//code.jquery.com/jquery-1.11.2.min',
         jqueryMousewheel: 'ThirdParty/jquery.mousewheel/jquery.mousewheel.min',
